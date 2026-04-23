@@ -40,3 +40,15 @@ class PaginatedLogsResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class LabelStatsResponse(BaseModel):
+    SAFE: int
+    SUSPICIOUS: int
+    MALICIOUS: int
+
+
+class AdminStatsResponse(BaseModel):
+    total_requests: int
+    labels: LabelStatsResponse
+    average_risk_score: float

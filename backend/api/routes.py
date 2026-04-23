@@ -15,8 +15,8 @@ from detection.data_leakage import DataLeakageDetector
 from detection.jailbreak import JailbreakDetector
 from detection.prompt_injection import PromptInjectionDetector
 from llm.proxy import LLMProxy
-from logging.db import get_db
-from logging.logger import get_logs, log_request
+from logstore.db import get_db
+from logstore.logger import get_logs, log_request
 
 router = APIRouter()
 

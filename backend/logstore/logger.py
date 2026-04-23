@@ -2,11 +2,10 @@ from math import ceil
 
 from sqlalchemy.orm import Session
 
-from logging.models import LogEntry
+from logstore.models import LogEntry
 
 
 def log_request(db: Session, data: dict) -> LogEntry:
-    """Persist an analyze request and its classification outcome."""
     log_entry = LogEntry(
         user_input=data["user_input"],
         risk_score=data["risk_score"],
@@ -20,7 +19,6 @@ def log_request(db: Session, data: dict) -> LogEntry:
 
 
 def get_logs(db: Session, page: int = 1, page_size: int = 10) -> dict:
-    """Return paginated gateway logs ordered from newest to oldest."""
     safe_page = max(page, 1)
     safe_page_size = max(1, min(page_size, 100))
 

@@ -1,10 +1,12 @@
  
 # Python
 .venv/
+.venv313/
 venv/
 __pycache__/
 *.pyc
 .env
+*.db
 
 # Node
 node_modules/

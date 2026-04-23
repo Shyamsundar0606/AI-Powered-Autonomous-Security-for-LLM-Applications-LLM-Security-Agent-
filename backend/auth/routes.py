@@ -11,7 +11,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register_user(payload: AuthRequest) -> UserResponse:
     """Register a new user with a bcrypt-hashed password."""
     user = create_user(payload.username, payload.password)
-    return UserResponse(id=user.id, username=user.username, created_at=user.created_at)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        created_at=user.created_at,
+        is_admin=user.is_admin,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

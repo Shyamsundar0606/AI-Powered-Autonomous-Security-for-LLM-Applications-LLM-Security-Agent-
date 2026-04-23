@@ -15,6 +15,11 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "30"))
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), "auth.db")
+ADMIN_USERNAMES = {
+    username.strip().lower()
+    for username in os.getenv("ADMIN_USERNAMES", "admin").split(",")
+    if username.strip()
+}
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -34,10 +39,19 @@ def initialize_auth_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 hashed_password TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                is_admin INTEGER NOT NULL DEFAULT 0
             )
             """
         )
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(users)").fetchall()
+        }
+        if "is_admin" not in columns:
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
+            )
         connection.commit()
 
 
@@ -54,12 +68,16 @@ def verify_password(password: str, hashed_password: str) -> bool:
 def create_user(username: str, password: str) -> UserInDB:
     hashed_password = hash_password(password)
     created_at = datetime.now(timezone.utc).isoformat()
+    is_admin = int(username.strip().lower() in ADMIN_USERNAMES)
 
     try:
         with get_connection() as connection:
             cursor = connection.execute(
-                "INSERT INTO users (username, hashed_password, created_at) VALUES (?, ?, ?)",
-                (username, hashed_password, created_at),
+                """
+                INSERT INTO users (username, hashed_password, created_at, is_admin)
+                VALUES (?, ?, ?, ?)
+                """,
+                (username, hashed_password, created_at, is_admin),
             )
             connection.commit()
             user_id = cursor.lastrowid
@@ -74,13 +92,18 @@ def create_user(username: str, password: str) -> UserInDB:
         username=username,
         hashed_password=hashed_password,
         created_at=created_at,
+        is_admin=bool(is_admin),
     )
 
 
 def get_user_by_username(username: str) -> UserInDB | None:
     with get_connection() as connection:
         row = connection.execute(
-            "SELECT id, username, hashed_password, created_at FROM users WHERE username = ?",
+            """
+            SELECT id, username, hashed_password, created_at, is_admin
+            FROM users
+            WHERE username = ?
+            """,
             (username,),
         ).fetchone()
 
@@ -92,6 +115,7 @@ def get_user_by_username(username: str) -> UserInDB | None:
         username=row["username"],
         hashed_password=row["hashed_password"],
         created_at=row["created_at"],
+        is_admin=bool(row["is_admin"]),
     )
 
 
@@ -146,3 +170,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def get_admin_user(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required.",
+        )
+    return current_user

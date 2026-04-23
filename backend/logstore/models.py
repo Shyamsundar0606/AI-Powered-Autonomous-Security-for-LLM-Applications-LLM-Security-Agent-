@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, Integer, String, Text, func
 
-from logging.db import Base
+from logstore.db import Base
 
 
 class LogEntry(Base):
