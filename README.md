@@ -4,30 +4,41 @@ Secure AI Input/Output Firewall for LLM Applications
 
 ## Overview
 
-LLM Security Gateway is a full-stack security system that protects AI applications from prompt injection, jailbreak attempts, data leakage, and unsafe model outputs.
+LLM Security Gateway is a full-stack AI security platform that protects LLM-powered applications from:
 
-The project places a security gateway between users and an LLM-powered application:
+- prompt injection
+- jailbreak attempts
+- sensitive data leakage
+- unsafe model outputs
+
+It sits between the user and the LLM application:
 
 ```text
-User -> Security Gateway -> LLM / Chatbot -> Output Filter -> User
+User -> Gateway -> LLM / Chatbot -> Output Filter -> User
 ```
 
-It includes a FastAPI backend, React/Next.js frontend, JWT authentication, admin analytics dashboard, adversarial red-team prompt generation, logging, benchmarking, adaptive scoring, and output filtering.
+The project combines a FastAPI backend, Next.js frontend, JWT authentication, SQLAlchemy logging, a SOC-style admin dashboard, adaptive risk scoring, adversarial testing, benchmarking, and integration hooks for real chatbot applications.
+
+## Why This Project Matters
+
+Modern LLM applications are vulnerable to prompt injection, hidden instruction leakage, and malicious prompt manipulation. This gateway adds a practical security layer before and after the model response, making AI applications safer, auditable, and easier to monitor.
 
 ## Key Features
 
 - Prompt injection detection
 - Jailbreak detection
 - Data leakage prevention
-- Output security filtering
-- JWT authentication
-- Admin-only dashboard
+- Output response filtering
+- JWT authentication and protected admin routes
 - SQLite request logging with SQLAlchemy
+- SOC-style admin dashboard
+- Incident review workflow
+- Log filtering and search
 - Attack trends and analytics
-- AI red-team attacker agent
+- Adaptive risk scoring from historical attacks
+- AI red-team attacker generator
+- Benchmark evaluator for labeled datasets
 - Multi-agent attacker/defender/evaluator simulation
-- Adaptive risk scoring from historical logs
-- Benchmark evaluator for labeled attack datasets
 - Real-world chatbot integration module
 
 ## Tech Stack
@@ -36,17 +47,18 @@ It includes a FastAPI backend, React/Next.js frontend, JWT authentication, admin
 - Frontend: Next.js, React, Tailwind CSS
 - Security: JWT, bcrypt password hashing
 - Analytics: SQLAlchemy aggregation queries
-- Testing/Red Teaming: rule-based adversarial prompt generator and benchmark evaluator
+- Red Teaming: rule-based adversarial prompt generator
+- Evaluation: benchmark engine, adaptive scoring, multi-agent simulation
 
 ## Project Structure
 
 ```text
 backend/
-  admin/          Admin APIs for logs, stats, and high-risk prompts
   adaptive/       Adaptive risk scoring from previous logs
+  admin/          Admin APIs for SOC dashboard, incidents, analytics
   adversarial/    AI red-team attack generator
   agents/         Multi-agent attacker, defender, evaluator system
-  analytics/      Advanced analytics engine
+  analytics/      Attack trends, distributions, histograms
   api/            Main analyze and attack-test routes
   auth/           JWT authentication and user registration
   benchmark/      Detection performance evaluator
@@ -59,11 +71,22 @@ backend/
   utils/          Shared backend utilities
 
 frontend/
-  components/     UI components and admin dashboard
+  components/     Main UI and SOC dashboard components
   pages/          Next.js pages
   services/       API client and JWT token handling
   styles/         Tailwind/global styles
 ```
+
+## Main Security Workflow
+
+1. A user submits a prompt from the frontend.
+2. The prompt is sent to the FastAPI backend.
+3. Detection modules inspect it for prompt injection, jailbreak, and leakage patterns.
+4. The decision engine assigns a risk score and classification.
+5. The gateway either allows, restricts, or blocks the request.
+6. The output response is scanned again using the output security filter.
+7. The request and result are logged into SQLite.
+8. The admin dashboard displays analytics, trends, filters, and incidents.
 
 ## Backend Setup
 
@@ -105,11 +128,10 @@ Frontend runs at:
 http://localhost:3000
 ```
 
-Admin dashboard:
+Pages:
 
-```text
-http://localhost:3000/admin
-```
+- Main gateway UI: `http://localhost:3000`
+- SOC admin dashboard: `http://localhost:3000/admin`
 
 ## Authentication Flow
 
@@ -158,6 +180,31 @@ Example response:
 }
 ```
 
+## SOC Dashboard Features
+
+The `/admin` dashboard now behaves like a lightweight SOC console.
+
+It includes:
+
+- total requests
+- safe/suspicious/malicious counts
+- average risk score
+- attack distribution
+- request volume trends
+- top attack types
+- risk histogram
+- paginated security event logs
+- search and filtering
+- incident status management
+
+Supported incident states:
+
+- `NEW`
+- `INVESTIGATING`
+- `ESCALATED`
+- `RESOLVED`
+- `FALSE_POSITIVE`
+
 ## Admin APIs
 
 Get dashboard stats:
@@ -168,20 +215,31 @@ Invoke-RestMethod `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
-Get paginated logs:
+Get SOC analytics:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "http://localhost:8000/admin/logs?page=1&page_size=10" `
+  -Uri "http://localhost:8000/admin/analytics" `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
-Get malicious-only logs:
+Get filtered logs:
 
 ```powershell
 Invoke-RestMethod `
-  -Uri "http://localhost:8000/admin/high-risk?page=1&page_size=10" `
+  -Uri "http://localhost:8000/admin/logs?page=1&page_size=10&label=SUSPICIOUS&attack_type=prompt_injection" `
   -Headers @{ Authorization = "Bearer $token" }
+```
+
+Update incident status:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8000/admin/incidents/1" `
+  -Method Patch `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body '{"incident_status":"INVESTIGATING","incident_notes":"Reviewed by analyst"}'
 ```
 
 ## Main API Endpoints
@@ -194,28 +252,46 @@ Invoke-RestMethod `
 | POST | `/analyze` | Analyze prompt risk |
 | POST | `/attack-test` | Generate adversarial prompts |
 | GET | `/logs` | Protected paginated logs |
-| GET | `/admin/logs` | Admin paginated logs |
-| GET | `/admin/stats` | Admin security statistics |
-| GET | `/admin/high-risk` | Admin malicious-only logs |
+| GET | `/admin/logs` | Admin paginated and filterable logs |
+| GET | `/admin/stats` | Admin KPI statistics |
+| GET | `/admin/high-risk` | Malicious-only logs |
+| GET | `/admin/analytics` | Trends, distributions, histograms |
+| PATCH | `/admin/incidents/{log_id}` | Update incident state and notes |
 
-## Security Workflow
+## Advanced Modules
 
-1. User submits a prompt.
-2. JWT-protected backend receives the request.
-3. Detection modules inspect the prompt.
-4. Decision engine calculates risk score and label.
-5. Safe response is generated or blocked.
-6. Output filter scans the response.
-7. Request and result are logged to SQLite.
-8. Admin dashboard displays logs and analytics.
+### Adaptive Defense
+
+The adaptive module boosts risk scores if similar attack patterns have appeared before in historical logs.
+
+### Adversarial Red Team
+
+The adversarial generator creates prompt injection, jailbreak, and data leakage prompts for system testing.
+
+### Benchmarking
+
+The benchmark evaluator measures detection performance using labeled prompt datasets and returns accuracy, precision, recall, and confusion matrix.
+
+### Multi-Agent Simulation
+
+The attacker, defender, and evaluator agents simulate attacks and measure how effectively the gateway detects them.
+
+### Real-World Integration
+
+The integration module demonstrates how to place the gateway in front of a customer-support chatbot or document assistant.
 
 ## Example Use Cases
 
 - Customer support chatbot protection
 - Internal document assistant security
 - AI red-team training lab
-- LLM prompt injection detection demo
+- LLM prompt injection defense demo
+- SOC-style monitoring of AI application abuse
 - MSc cybersecurity portfolio project
+
+## Resume-Friendly Project Title
+
+**LLM Security Gateway: AI Input/Output Firewall**
 
 ## Future Improvements
 
@@ -224,6 +300,7 @@ Invoke-RestMethod `
 - Role-based access control
 - Docker and Docker Compose setup
 - Unit and integration tests
-- CSV/JSON export for admin logs
-- Advanced dashboard charts
+- Export logs to CSV/JSON
+- Real chart library integration for richer dashboard visualizations
 - CI/CD with GitHub Actions
+- Alerts and notifications for repeated malicious activity
