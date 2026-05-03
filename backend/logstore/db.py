@@ -19,7 +19,9 @@ def init_db() -> None:
         "attack_type": "ALTER TABLE logs ADD COLUMN attack_type VARCHAR(32) NOT NULL DEFAULT 'unknown'",
         "incident_status": "ALTER TABLE logs ADD COLUMN incident_status VARCHAR(32) NOT NULL DEFAULT 'NEW'",
         "incident_notes": "ALTER TABLE logs ADD COLUMN incident_notes TEXT NOT NULL DEFAULT ''",
-        "updated_at": "ALTER TABLE logs ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+        # SQLite does not allow non-constant defaults like CURRENT_TIMESTAMP in
+        # ALTER TABLE ADD COLUMN, so we add the column first and backfill later.
+        "updated_at": "ALTER TABLE logs ADD COLUMN updated_at DATETIME",
     }
 
     with engine.begin() as connection:
@@ -30,6 +32,18 @@ def init_db() -> None:
         for column_name, statement in required_columns.items():
             if column_name not in existing:
                 connection.execute(text(statement))
+
+        # Backfill any missing timestamps after the column exists.
+        if "updated_at" not in existing:
+            connection.execute(
+                text(
+                    """
+                    UPDATE logs
+                    SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP)
+                    WHERE updated_at IS NULL
+                    """
+                )
+            )
 
 
 def get_db():
