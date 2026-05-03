@@ -45,6 +45,7 @@ def analyze_prompt(
             "risk_score": response.risk_score,
             "label": response.label,
             "reason": response.reason,
+            "attack_type": _infer_attack_type(response.reason),
         },
     )
     return response
@@ -76,3 +77,14 @@ def list_logs(
 ) -> PaginatedLogsResponse:
     """Retrieve paginated analysis logs for auditing."""
     return PaginatedLogsResponse(**get_logs(db, page=page, page_size=page_size))
+
+
+def _infer_attack_type(reason: str) -> str:
+    lower_reason = reason.lower()
+    if "prompt_injection" in lower_reason:
+        return "prompt_injection"
+    if "jailbreak" in lower_reason:
+        return "jailbreak"
+    if "data_leakage" in lower_reason:
+        return "data_leak"
+    return "unknown"

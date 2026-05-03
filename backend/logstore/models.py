@@ -11,4 +11,13 @@ class LogEntry(Base):
     risk_score = Column(Integer, nullable=False)
     label = Column(String(32), nullable=False, index=True)
     reason = Column(Text, nullable=False)
+    attack_type = Column(String(32), nullable=False, default="unknown", index=True)
+    incident_status = Column(String(32), nullable=False, default="NEW", index=True)
+    incident_notes = Column(Text, nullable=False, default="")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

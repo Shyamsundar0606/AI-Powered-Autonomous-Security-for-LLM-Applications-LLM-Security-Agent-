@@ -70,10 +70,46 @@ export async function getAdminStats() {
   return apiRequest("/admin/stats", { method: "GET" });
 }
 
-export async function getAdminLogs(page = 1, pageSize = 10) {
-  return apiRequest(`/admin/logs?page=${page}&page_size=${pageSize}`, { method: "GET" });
+export async function getAdminAnalytics() {
+  return apiRequest("/admin/analytics", { method: "GET" });
 }
 
-export async function getHighRiskLogs(page = 1, pageSize = 10) {
-  return apiRequest(`/admin/high-risk?page=${page}&page_size=${pageSize}`, { method: "GET" });
+export async function getAdminLogs(page = 1, pageSize = 10, filters = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  return apiRequest(`/admin/logs?${params.toString()}`, { method: "GET" });
+}
+
+export async function getHighRiskLogs(page = 1, pageSize = 10, filters = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  return apiRequest(`/admin/high-risk?${params.toString()}`, { method: "GET" });
+}
+
+export async function updateIncidentStatus(logId, incidentStatus, incidentNotes = "") {
+  return apiRequest(`/admin/incidents/${logId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      incident_status: incidentStatus,
+      incident_notes: incidentNotes,
+    }),
+  });
 }
