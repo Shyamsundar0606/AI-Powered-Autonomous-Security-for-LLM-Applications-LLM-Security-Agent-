@@ -11,12 +11,22 @@ from admin.service import (
 from api.schemas import (
     AdminAnalyticsResponse,
     AdminStatsResponse,
+    IncidentPatchRequest,
+    IncidentResponse,
+    IncidentTimelineResponse,
     IncidentUpdateRequest,
     LogResponse,
+    PaginatedIncidentsResponse,
     PaginatedLogsResponse,
 )
 from auth.auth_handler import get_admin_user
 from auth.models import UserInDB
+from incidents.service import (
+    get_incident_by_id,
+    get_incident_timeline,
+    list_incidents,
+    update_incident,
+)
 from logstore.db import get_db
 
 
@@ -104,4 +114,73 @@ def update_log_incident(
         log_id=log_id,
         incident_status=payload.incident_status,
         incident_notes=payload.incident_notes,
+    )
+
+
+@router.get("/incidents", response_model=PaginatedIncidentsResponse)
+def list_admin_incidents(
+    _: UserInDB = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    attack_type: str | None = Query(default=None),
+    assignee: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+) -> PaginatedIncidentsResponse:
+    """Return paginated SOC incidents for analyst workflows."""
+    return PaginatedIncidentsResponse(
+        **list_incidents(
+            db,
+            page=page,
+            page_size=page_size,
+            status=status,
+            severity=severity,
+            attack_type=attack_type,
+            assignee=assignee,
+            search=search,
+        )
+    )
+
+
+@router.get("/incidents/{incident_id}", response_model=IncidentResponse)
+def get_admin_incident(
+    incident_id: int,
+    _: UserInDB = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> IncidentResponse:
+    """Return a single incident by id."""
+    return get_incident_by_id(db, incident_id)
+
+
+@router.patch("/incidents/{incident_id}", response_model=IncidentResponse)
+def patch_admin_incident(
+    incident_id: int,
+    payload: IncidentPatchRequest,
+    current_user: UserInDB = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> IncidentResponse:
+    """Update incident ownership, severity, notes, or resolution state."""
+    return update_incident(
+        db,
+        incident_id=incident_id,
+        status=payload.status,
+        severity=payload.severity,
+        assignee=payload.assignee,
+        notes=payload.notes,
+        actor=current_user.username,
+    )
+
+
+@router.get("/incidents/{incident_id}/timeline", response_model=IncidentTimelineResponse)
+def get_admin_incident_timeline(
+    incident_id: int,
+    _: UserInDB = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> IncidentTimelineResponse:
+    """Return the full timeline for a single incident."""
+    return IncidentTimelineResponse(
+        incident_id=incident_id,
+        events=get_incident_timeline(db, incident_id),
     )

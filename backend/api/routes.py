@@ -15,6 +15,7 @@ from detection.data_leakage import DataLeakageDetector
 from detection.jailbreak import JailbreakDetector
 from detection.prompt_injection import PromptInjectionDetector
 from llm.proxy import LLMProxy
+from incidents.service import create_or_update_incident_for_log
 from logstore.db import get_db
 from logstore.logger import get_logs, log_request
 
@@ -38,7 +39,7 @@ def analyze_prompt(
 ) -> AnalyzeResponse:
     """Analyze a prompt, classify its risk, and return a safe response."""
     response = decision_engine.analyze(payload.input)
-    log_request(
+    log_entry = log_request(
         db,
         {
             "user_input": payload.input,
@@ -48,6 +49,7 @@ def analyze_prompt(
             "attack_type": _infer_attack_type(response.reason),
         },
     )
+    create_or_update_incident_for_log(db, log_entry)
     return response
 
 

@@ -11,6 +11,7 @@ Base = declarative_base()
 
 def init_db() -> None:
     from logstore.models import LogEntry
+    from incidents.models import Incident, IncidentTimelineEvent
 
     Base.metadata.create_all(bind=engine)
 
