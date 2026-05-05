@@ -33,6 +33,8 @@ Modern LLM applications are vulnerable to prompt injection, hidden instruction l
 - SQLite request logging with SQLAlchemy
 - SOC-style admin dashboard
 - Incident review workflow
+- SOC incident response backend
+- Structured alert payload generation
 - Log filtering and search
 - Attack trends and analytics
 - Adaptive risk scoring from historical attacks
@@ -59,11 +61,13 @@ backend/
   adversarial/    AI red-team attack generator
   agents/         Multi-agent attacker, defender, evaluator system
   analytics/      Attack trends, distributions, histograms
+  alerts/         Alert payload builders for SOC notifications
   api/            Main analyze and attack-test routes
   auth/           JWT authentication and user registration
   benchmark/      Detection performance evaluator
   decision/       Risk scoring and decision engine
   detection/      Prompt injection, jailbreak, and leakage detectors
+  incidents/      Incident records, severity, assignee, and timeline logic
   integration/    Real-world chatbot gateway integration
   llm/            LLM proxy abstraction
   logstore/       SQLAlchemy logging database
@@ -86,7 +90,8 @@ frontend/
 5. The gateway either allows, restricts, or blocks the request.
 6. The output response is scanned again using the output security filter.
 7. The request and result are logged into SQLite.
-8. The admin dashboard displays analytics, trends, filters, and incidents.
+8. Malicious prompts can automatically create SOC incidents with severity and timeline events.
+9. The admin dashboard displays analytics, trends, filters, logs, and incident workflow.
 
 ## Backend Setup
 
@@ -196,6 +201,8 @@ It includes:
 - paginated security event logs
 - search and filtering
 - incident status management
+- incident severity and assignment support
+- incident timeline API support
 
 Supported incident states:
 
@@ -204,6 +211,13 @@ Supported incident states:
 - `ESCALATED`
 - `RESOLVED`
 - `FALSE_POSITIVE`
+
+Incident records also support:
+
+- severity: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+- assignee tracking
+- repeated attack escalation
+- timeline events such as `CREATED`, `AUTO_ESCALATED`, `ALERT_DISPATCHED`, `STATUS_UPDATED`
 
 ## Admin APIs
 
@@ -231,7 +245,7 @@ Invoke-RestMethod `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
-Update incident status:
+Update log-level incident review status:
 
 ```powershell
 Invoke-RestMethod `
@@ -239,7 +253,23 @@ Invoke-RestMethod `
   -Method Patch `
   -Headers @{ Authorization = "Bearer $token" } `
   -ContentType "application/json" `
-  -Body '{"incident_status":"INVESTIGATING","incident_notes":"Reviewed by analyst"}'
+  -Body '{"status":"INVESTIGATING","severity":"HIGH","assignee":"Shyam","notes":"Reviewed by analyst"}'
+```
+
+List incidents:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8000/admin/incidents?page=1&page_size=10" `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Get incident timeline:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8000/admin/incidents/1/timeline" `
+  -Headers @{ Authorization = "Bearer $token" }
 ```
 
 ## Main API Endpoints
@@ -256,7 +286,11 @@ Invoke-RestMethod `
 | GET | `/admin/stats` | Admin KPI statistics |
 | GET | `/admin/high-risk` | Malicious-only logs |
 | GET | `/admin/analytics` | Trends, distributions, histograms |
-| PATCH | `/admin/incidents/{log_id}` | Update incident state and notes |
+| GET | `/admin/incidents` | Paginated incident queue |
+| GET | `/admin/incidents/{incident_id}` | Retrieve one incident |
+| PATCH | `/admin/incidents/{incident_id}` | Update status, severity, assignee, notes |
+| GET | `/admin/incidents/{incident_id}/timeline` | Incident event timeline |
+| PATCH | `/admin/incidents/{log_id}` | Update log-level review status and notes |
 
 ## Advanced Modules
 
@@ -279,6 +313,10 @@ The attacker, defender, and evaluator agents simulate attacks and measure how ef
 ### Real-World Integration
 
 The integration module demonstrates how to place the gateway in front of a customer-support chatbot or document assistant.
+
+### SOC Incident Response
+
+The incident response layer auto-creates incident records for malicious prompts, assigns severity, counts repeated malicious patterns, emits alert payloads, and stores a timeline that analysts can review through admin APIs.
 
 ## Example Use Cases
 
@@ -303,4 +341,4 @@ The integration module demonstrates how to place the gateway in front of a custo
 - Export logs to CSV/JSON
 - Real chart library integration for richer dashboard visualizations
 - CI/CD with GitHub Actions
-- Alerts and notifications for repeated malicious activity
+- Live delivery of alerts to email, Slack, or webhooks
